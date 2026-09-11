@@ -1,0 +1,13 @@
+services:
+  wardrobe-agent:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      ALLOWED_ORIGINS: "http://localhost:8080"
+    volumes:
+      - wardrobe_data:/data
+
+volumes:
+  wardrobe_data:

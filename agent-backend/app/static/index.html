@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#D1BC48">
+  <title>衣橱顾问</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#chat" aria-label="返回衣橱顾问首页">衣橱顾问</a>
+      <nav aria-label="主导航">
+        <button data-view="chat" class="nav-item is-active">导购</button>
+        <button data-view="profile" class="nav-item">我的档案</button>
+        <button data-view="wardrobe" class="nav-item">我的衣橱</button>
+        <button data-view="calendar" class="nav-item">穿衣日历</button>
+      </nav>
+    </header>
+
+    <section id="chat" class="view is-active" aria-labelledby="chat-title">
+      <div class="hero">
+        <p class="eyebrow">衣橱顾问 · 时装编辑</p>
+        <h1 id="chat-title">今天，想穿成什么样？</h1>
+        <p>告诉我场景、预算与偏好，为你组合完整穿搭。</p>
+      </div>
+      <div class="quick-actions" aria-label="快速选择">
+        <button data-prompt="通勤，¥500内，简约">通勤 ¥500 内</button>
+        <button data-prompt="约会，¥800内，法式">约会 法式</button>
+        <button data-prompt="旅行，¥1000内，休闲，不要裙子">旅行 不要裙子</button>
+        <button data-prompt="面试，¥1000内，简约，显瘦">面试 显瘦</button>
+      </div>
+      <section class="panel chat-panel" aria-live="polite">
+        <div id="chat-log" class="chat-log">
+          <article class="message assistant">你好，我是你的衣橱顾问。说一句“通勤 ¥500 内 显瘦”，我会从商品库中为你挑选完整搭配。</article>
+        </div>
+        <div class="composer">
+          <label class="sr-only" for="chat-input">输入你的穿搭需求</label>
+          <textarea id="chat-input" rows="2" placeholder="例如：通勤，¥1000内，简约，165cm，M码，显瘦"></textarea>
+          <button id="voice-button" class="voice" type="button" aria-label="语音输入">语音</button>
+          <button id="send-button" class="primary" type="button">发送</button>
+        </div>
+        <p id="voice-status" class="hint" aria-live="polite">语音识别仅使用浏览器能力，识别完成后由你确认发送。</p>
+      </section>
+      <section id="recommendations" class="recommendations" aria-live="polite"></section>
+    </section>
+
+    <section id="profile" class="view" aria-labelledby="profile-title">
+      <div class="section-heading"><p class="eyebrow">个人偏好</p><h1 id="profile-title">我的档案</h1><p>所有字段均可跳过，仅用于软排序与表达，不会覆盖库存、预算、尺码等硬约束。</p></div>
+      <form id="profile-form" class="panel form-grid">
+        <label>常用场景<input name="common_scenarios" placeholder="通勤、约会、旅行"></label>
+        <label>预算区间<input name="budget_range" placeholder="例如 ¥300–¥800"></label>
+        <label>常穿尺码<input name="usual_size" placeholder="例如 M"></label>
+        <label>偏好风格<input name="preferred_styles" placeholder="简约、法式"></label>
+        <label>偏好色系<input name="preferred_colors" placeholder="米白、深蓝"></label>
+        <label>避雷色系<input name="avoided_colors" placeholder="荧光色"></label>
+        <label>舒适度偏好<input name="comfort_preferences" placeholder="好走路、不穿高跟"></label>
+        <label>衣橱目标<input name="wardrobe_goal" placeholder="少买但买对"></label>
+        <div class="form-actions"><button class="primary">保存档案</button><button type="button" id="clear-profile" class="secondary">清空档案</button></div>
+      </form>
+    </section>
+
+    <section id="wardrobe" class="view" aria-labelledby="wardrobe-title">
+      <div class="section-heading"><p class="eyebrow">已有单品</p><h1 id="wardrobe-title">我的衣橱</h1><p>录入常穿衣物后，穿衣日历可从这里选择单品。</p></div>
+      <form id="wardrobe-form" class="panel form-grid compact">
+        <label>名称<input name="name" required placeholder="米色针织衫"></label>
+        <label>品类<select name="category"><option>上装</option><option>裤装</option><option>半身裙</option><option>连衣裙</option><option>鞋履</option><option>配饰</option></select></label>
+        <label>颜色<input name="color" placeholder="米色"></label>
+        <label>风格<input name="styles" placeholder="简约"></label>
+        <label>场景<input name="scenarios" placeholder="通勤、日常"></label>
+        <label>版型<input name="fit" placeholder="直筒"></label>
+        <label>尺码<input name="size" placeholder="M"></label>
+        <label>状态<select name="ownership_status"><option>已拥有</option><option>待购入</option></select></label>
+        <label class="checkbox"><input type="checkbox" name="idle"> 标记为闲置</label>
+        <div class="form-actions"><button class="primary">添加到衣橱</button><button type="reset" class="secondary">重置</button></div>
+      </form>
+      <div id="wardrobe-list" class="card-grid" aria-live="polite"></div>
+    </section>
+
+    <section id="calendar" class="view" aria-labelledby="calendar-title">
+      <div class="section-heading calendar-head"><div><p class="eyebrow">穿后记录</p><h1 id="calendar-title">穿衣日历</h1></div><div><button id="prev-month" class="secondary" type="button">上月</button><button id="next-month" class="secondary" type="button">下月</button></div></div>
+      <section class="panel"><h2 id="month-label">—</h2><div class="weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="calendar-grid" class="calendar-grid"></div></section>
+      <section id="calendar-summary" class="summary-grid" aria-live="polite"></section>
+      <dialog id="entry-dialog" class="entry-dialog">
+        <form id="calendar-form" method="dialog" class="form-grid compact">
+          <div class="dialog-head"><h2 id="entry-date-label">记录穿搭</h2><button id="close-dialog" type="button" class="secondary">关闭</button></div>
+          <input type="hidden" name="wear_date">
+          <fieldset><legend>选择衣橱单品</legend><div id="calendar-wardrobe-options" class="check-grid"></div></fieldset>
+          <label>穿搭名称<input name="outfit_title" placeholder="今日通勤"></label>
+          <label>场景<input name="scene" placeholder="通勤"></label>
+          <label>天气感受<input name="weather_feeling" placeholder="微凉"></label>
+          <label>舒适度<select name="comfort_rating"><option value="">未记录</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label>
+          <label>满意度<select name="satisfaction_rating"><option value="">未记录</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label>
+          <label class="wide">备注<textarea name="note" rows="3" placeholder="例如：鞋子走路有点累"></textarea></label>
+          <div class="form-actions"><button class="primary">保存记录</button><button id="delete-entry" type="button" class="danger">删除记录</button></div>
+        </form>
+      </dialog>
+    </section>
+    <p id="notice" class="notice" aria-live="polite"></p>
+    <footer>本页使用模拟商品与推荐，仅供参考。</footer>
+  </main>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

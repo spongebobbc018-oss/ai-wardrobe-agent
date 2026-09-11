@@ -1,0 +1,8 @@
+.git
+.workbuddy
+agent-backend/data
+__pycache__
+*.pyc
+.env
+.env.*
+node_modules
