@@ -1,0 +1,25 @@
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Local databases and user/runtime data
+agent-backend/data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Build and OS files
+node_modules/
+dist/
+build/
+.DS_Store
+
+# WorkBuddy local session data
+.workbuddy/
