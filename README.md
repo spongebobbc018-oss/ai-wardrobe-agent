@@ -37,6 +37,16 @@ docker compose up --build
 
 不要提交 `.env`、数据库文件、API Token、真实用户档案或衣橱数据。
 
+## GitHub Pages 品牌入口页
+
+仓库的 `docs/` 目录包含静态品牌入口页。启用 GitHub Pages 后，项目入口地址为：
+
+```text
+https://spongebobbc018-oss.github.io/ai-wardrobe-agent/
+```
+
+在 GitHub 仓库中依次进入 **Settings → Pages**，将发布源设为 **Deploy from a branch → main → /docs** 后保存。该入口页会跳转到当前完整 Agent 服务；GitHub Pages 本身不运行 FastAPI、SQLite、推荐或日历 API。
+
 ## 恢复边界
 
 本仓库已将原型的可恢复能力代码化，但不包含秒哒的托管运行资源或秒哒内部 Supabase 数据。要完全恢复上线服务，请按 `docs/recovery-runbook.md` 创建新运行环境、从 Excel 恢复商品，并从受管数据库备份恢复用户数据。

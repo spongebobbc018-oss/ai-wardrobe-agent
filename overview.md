@@ -51,6 +51,7 @@
 - 已补齐 `database/migrations/0001_initial_schema.sql`、`Dockerfile`、`docker-compose.yml`、GitHub Actions 校验流程、架构说明与恢复手册。
 - 本地已验证：70 条商品导入、推荐接口、档案保存、衣橱新增、日历同日更新与月度统计；本机未安装 Docker，因此容器镜像尚未在本机实际构建。
 - SQLite 数据库、环境变量、Token 和真实用户数据均被 `.gitignore` 排除，不上传到仓库。
+- 已发布可恢复版分享链接：https://383999cd38e747c5a16b6548816b4590.app-tencent.workbuddy.link 。当前发布实例运行 FastAPI + SQLite，已通过启动可达性验证；适用于演示和小规模试用。长期生产使用建议迁移到托管 PostgreSQL，并配置备份、监控和自有域名。
 
 ## 下一步建议
 
