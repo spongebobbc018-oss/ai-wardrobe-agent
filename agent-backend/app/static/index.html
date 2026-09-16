@@ -21,9 +21,9 @@
 
     <section id="chat" class="view is-active" aria-labelledby="chat-title">
       <div class="hero">
-        <p class="eyebrow">衣橱顾问 · 时装编辑</p>
-        <h1 id="chat-title">今天，想穿成什么样？</h1>
-        <p>告诉我场景、预算与偏好，为你组合完整穿搭。</p>
+        <p class="eyebrow">衣橱优先 · 精准补购</p>
+        <h1 id="chat-title">先用好衣橱，再决定是否需要买</h1>
+        <p>告诉我场景、预算与偏好。我会先调用你的个人档案和已有单品，只有衣橱无法覆盖关键场景时才进入精准导购。</p>
       </div>
       <div class="quick-actions" aria-label="快速选择">
         <button data-prompt="通勤，¥500内，简约">通勤 ¥500 内</button>
@@ -31,6 +31,7 @@
         <button data-prompt="旅行，¥1000内，休闲，不要裙子">旅行 不要裙子</button>
         <button data-prompt="面试，¥1000内，简约，显瘦">面试 显瘦</button>
       </div>
+      <section id="wardrobe-context" class="wardrobe-context" aria-live="polite" aria-label="本次衣橱数据调用状态"></section>
       <section class="panel chat-panel" aria-live="polite">
         <div id="chat-log" class="chat-log">
           <article class="message assistant">你好，我是你的衣橱顾问。说一句“通勤 ¥500 内 显瘦”，我会从商品库中为你挑选完整搭配。</article>

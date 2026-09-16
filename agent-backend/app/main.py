@@ -36,6 +36,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=500)
     session_id: str | None = Field(default=None, max_length=100)
     profile_id: str | None = Field(default=None, max_length=80)
+    use_wardrobe: bool = True
 
 
 class ImportRequest(BaseModel):
@@ -386,6 +387,113 @@ def wardrobe_payload(row: sqlite3.Row) -> dict[str, Any]:
     return item
 
 
+def get_wardrobe_items(profile_id: str) -> list[dict[str, Any]]:
+    with db_connection() as db:
+        rows = db.execute(
+            "SELECT item.*, COUNT(calendar.entry_id) AS wear_count FROM wardrobe_items item "
+            "LEFT JOIN outfit_calendar_entries calendar ON calendar.wardrobe_item_ids_json LIKE '%' || item.item_id || '%' "
+            "WHERE item.profile_id = ? GROUP BY item.item_id ORDER BY item.updated_at DESC",
+            (profile_id,),
+        ).fetchall()
+    return [{**wardrobe_payload(row), "wear_count": row["wear_count"]} for row in rows]
+
+
+def apply_profile_defaults(state: dict[str, Any], profile: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    applied: list[str] = []
+    if not state.get("size") and profile.get("usual_size"):
+        state["size"] = profile["usual_size"]
+        applied.append("常穿尺码")
+    if not state.get("style") and profile.get("preferred_styles"):
+        state["style"] = profile["preferred_styles"][0]
+        applied.append("风格偏好")
+    if not state.get("budget") and profile.get("budget_range"):
+        amounts = [int(value) for value in re.findall(r"\d{2,4}", profile["budget_range"])]
+        if amounts:
+            state["budget"] = max(amounts)
+            applied.append("预算区间")
+    return state, applied
+
+
+def ranked_wardrobe_items(items: list[dict[str, Any]], state: dict[str, Any]) -> list[dict[str, Any]]:
+    def score(item: dict[str, Any]) -> int:
+        result = 0
+        if state.get("scenario") in item.get("scenarios", []):
+            result += 4
+        if state.get("style") in item.get("styles", []):
+            result += 2
+        if item.get("wear_count", 0) > 0:
+            result += 1
+        return result
+    usable = [item for item in items if item.get("ownership_status") == "已拥有" and not item.get("idle")]
+    return sorted(usable, key=score, reverse=True)
+
+
+def build_wardrobe_outfits(items: list[dict[str, Any]], state: dict[str, Any]) -> list[dict[str, Any]]:
+    candidates = ranked_wardrobe_items(items, state)
+    excluded = set(state.get("excluded_categories", []))
+    patterns = [["上装", "裤装"], ["连衣裙"], ["上装", "半身裙"]]
+    outfits: list[dict[str, Any]] = []
+    used_signatures: set[tuple[str, ...]] = set()
+    for pattern in patterns:
+        if any(category in excluded for category in pattern):
+            continue
+        selected: list[dict[str, Any]] = []
+        selected_ids: set[str] = set()
+        for category in pattern:
+            item = next((candidate for candidate in candidates if candidate["category"] == category and candidate["item_id"] not in selected_ids), None)
+            if not item:
+                selected = []
+                break
+            selected.append(item)
+            selected_ids.add(item["item_id"])
+        if not selected:
+            continue
+        shoes = next((candidate for candidate in candidates if candidate["category"] == "鞋履" and candidate["item_id"] not in selected_ids), None)
+        if shoes:
+            selected.append(shoes)
+            selected_ids.add(shoes["item_id"])
+        signature = tuple(sorted(selected_ids))
+        if signature in used_signatures:
+            continue
+        used_signatures.add(signature)
+        score = min(96, 82 + (6 if state.get("scenario") else 0) + (4 if state.get("style") else 0) + (4 if state.get("slim") else 0))
+        outfits.append({
+            "name": f"衣橱复用方案 {len(outfits) + 1}",
+            "items": [{"item_id": item["item_id"], "name": item["name"], "category": item["category"], "color": item.get("color"), "source": "wardrobe"} for item in selected],
+            "total_price": 0,
+            "reason": "优先调用你的个人衣橱组合而成，避免为本次场景产生不必要购买。" + (f" 已按{state['scenario']}场景排序。" if state.get("scenario") else ""),
+            "size_advice": "均为你的已拥有单品；可根据当天温度调整外搭或鞋履。",
+            "match_score": score,
+            "match_level": "高度适配" if score >= 88 else "较适配",
+            "source": "wardrobe_reuse",
+        })
+    return outfits
+
+
+def wardrobe_decision(profile: dict[str, Any], wardrobe: list[dict[str, Any]], state: dict[str, Any], outfits: list[dict[str, Any]], profile_applied: list[str]) -> dict[str, Any]:
+    reusable_count = len([item for item in wardrobe if item.get("ownership_status") == "已拥有" and not item.get("idle")])
+    base = {
+        "profile_applied": profile_applied,
+        "wardrobe_item_count": len(wardrobe),
+        "reusable_item_count": reusable_count,
+        "source": "wardrobe_reuse" if outfits else "precise_purchase",
+    }
+    if outfits:
+        return {**base, "summary": "已先调用个人档案与衣橱资产生成可复用 Look，本次无需补购。", "gap": None}
+    owned_categories = {item["category"] for item in wardrobe if item.get("ownership_status") == "已拥有"}
+    missing_role = "可复用的基础搭配单品"
+    if not reusable_count:
+        missing_role = "一套可覆盖高频场景的基础搭配"
+    elif "上装" not in owned_categories:
+        missing_role = "一件可连接现有下装的上装"
+    elif not ({"裤装", "半身裙", "连衣裙"} & owned_categories):
+        missing_role = "一件可覆盖通勤与日常的下装或连衣裙"
+    elif "鞋履" not in owned_categories:
+        missing_role = "一双能完成整套搭配的鞋履"
+    reason = "当前衣橱尚未形成可完成该场景的完整 Look" if reusable_count else "当前尚未录入可用于搭配的已拥有单品"
+    return {**base, "summary": "已完成衣橱诊断，识别到需要补齐的结构性缺口后才进入精准导购。", "gap": {"role": missing_role, "reason": reason, "reuse_scope": f"补齐后可与当前衣橱中 {reusable_count} 件可复用单品重新组合", "purchase_value": "优先选择能覆盖多个高频场景、降低后续闲置风险的单品"}}
+
+
 @app.on_event("startup")
 def startup() -> None:
     init_db()
@@ -430,8 +538,12 @@ def refresh_catalog(request: ImportRequest) -> dict[str, Any]:
 def chat(request: ChatRequest) -> dict[str, Any]:
     session_id = request.session_id or str(uuid.uuid4())
     trace_id = str(uuid.uuid4())
+    profile_id = validate_profile_id(request.profile_id) if request.profile_id else None
+    profile = profile_payload(profile_id)["profile"] if profile_id else {}
+    wardrobe = get_wardrobe_items(profile_id) if profile_id else []
     state = get_session(session_id)
     state, changes, candidate_scenes = parse_conditions(request.message, state)
+    state, profile_applied = apply_profile_defaults(state, profile)
     if len(candidate_scenes) >= 2:
         payload = {"trace_id": trace_id, "session_id": session_id, "type": "scene_conflict",
                    "message": f"你同时提到了{'和'.join(candidate_scenes)}，这次更偏向哪个场景？",
@@ -441,21 +553,34 @@ def chat(request: ChatRequest) -> dict[str, Any]:
         payload = {"trace_id": trace_id, "session_id": session_id, "type": "follow_up", "message": ask_question(state),
                    "changes": changes, "state": state_summary(state), "outfits": []}
     else:
-        outfits = build_outfits(query_products(state), state)
-        if outfits:
+        wardrobe_outfits = build_wardrobe_outfits(wardrobe, state) if request.use_wardrobe else []
+        decision = wardrobe_decision(profile, wardrobe, state, wardrobe_outfits, profile_applied)
+        if wardrobe_outfits:
             payload = {"trace_id": trace_id, "session_id": session_id, "type": "recommendation",
-                       "message": f"已为你找到 {len(outfits)} 套完整穿搭。", "changes": changes,
-                       "state": state_summary(state), "outfits": outfits}
+                       "message": f"我先基于你的衣橱生成了 {len(wardrobe_outfits)} 套可直接复用的完整 Look。", "changes": changes,
+                       "state": state_summary(state), "outfits": wardrobe_outfits, "decision": decision}
         else:
-            payload = {"trace_id": trace_id, "session_id": session_id, "type": "no_match",
-                       "message": "当前条件下暂无完整穿搭。可尝试增加预算或放宽风格。", "changes": changes,
-                       "state": state_summary(state), "outfits": [],
-                       "blocking_reasons": ["当前可售商品无法同时组成符合预算与尺码的完整搭配"],
-                       "actions": ["增加 ¥100 预算", "放宽风格", "换一个场景"]}
+            purchase_outfits = build_outfits(query_products(state), state)
+            if purchase_outfits:
+                for outfit in purchase_outfits:
+                    outfit["source"] = "precise_purchase"
+                    outfit["purchase_value"] = decision["gap"]["purchase_value"]
+                    outfit["reuse_scope"] = decision["gap"]["reuse_scope"]
+                payload = {"trace_id": trace_id, "session_id": session_id, "type": "recommendation",
+                           "message": f"衣橱暂时无法覆盖该场景，已为你筛选 {len(purchase_outfits)} 套补齐关键缺口的方案。", "changes": changes,
+                           "state": state_summary(state), "outfits": purchase_outfits, "decision": decision}
+            else:
+                payload = {"trace_id": trace_id, "session_id": session_id, "type": "no_match",
+                           "message": "当前条件下暂无完整穿搭。可尝试增加预算或放宽风格。", "changes": changes,
+                           "state": state_summary(state), "outfits": [], "decision": decision,
+                           "blocking_reasons": ["当前可售商品无法同时组成符合预算与尺码的完整搭配"],
+                           "actions": ["增加 ¥100 预算", "放宽风格", "换一个场景"]}
+    if "decision" not in payload:
+        payload["decision"] = wardrobe_decision(profile, wardrobe, state, [], profile_applied)
     save_session(session_id, state)
     with db_connection() as db:
         db.execute("INSERT INTO traces (trace_id,session_id,user_message,state_json,tool_summary,response_json,created_at) VALUES (?,?,?,?,?,?,?)",
-                   (trace_id, session_id, request.message, json_value(state), payload["type"], json_value(payload), now()))
+                   (trace_id, session_id, request.message, json_value({**state, "profile_id": profile_id}), payload["type"], json_value(payload), now()))
     return payload
 
 
