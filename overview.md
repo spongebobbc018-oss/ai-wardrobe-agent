@@ -62,6 +62,7 @@
 - 推荐结果增加“衣橱复用 / 精准补购”来源标识与可解释决策卡；已在本地验证衣橱复用链路和缺口导购链路。
 - 已同步更新原线上分享链接，并验证可访问。
 - 衣橱优先改造已同步提交至 GitHub `main` 分支：`2f5b5b70cd4f973758ef2f6d054dcd6bcfdf8327`（`feat: prioritize personal wardrobe before shopping`）。
+- GitHub Pages 入口已更新为直达模式：`https://spongebobbc018-oss.github.io/ai-wardrobe-agent/` 加载后会自动跳转到完整 Agent 服务；若需查看品牌介绍页，可在链接末尾添加 `?landing=1`。GitHub `main` 对应提交：`8514ceb`。
 
 ## 下一步建议
 
